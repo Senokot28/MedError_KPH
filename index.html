@@ -1018,7 +1018,7 @@ function renderTab2() {
     if (sub  && clean(r.subtype) !== sub)  return false;
     return true;
   });
-
+ tab2Data.sort((a, b) => (b._date || 0) - (a._date || 0));
   document.getElementById('t2Count').textContent =
     `แสดง ${fmt(tab2Data.length)} / ${fmt(allData.length)} records`;
 
