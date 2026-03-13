@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Medication Error Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+<style>
+/* ─── Base ─── */
+:root {
+  --sev-A:#7c3aed; --sev-B:#3b82f6; --sev-C:#f59e0b;
+  --sev-D:#f97316; --sev-E:#ef4444; --sev-F:#dc2626;
+  --sev-G:#b91c1c; --sev-H:#991b1b; --sev-I:#7f1d1d;
+  --header-from:#c2410c; --header-to:#ea580c;
+  --bg:#f8f9fa; --card-shadow:0 1px 4px rgba(0,0,0,.08);
+}
+body { background:var(--bg); font-family:'Segoe UI','Noto Sans Thai',sans-serif; font-size:.9rem; color:#1e293b; }
+
+/* ─── Header ─── */
+.app-header {
+  background:linear-gradient(135deg,var(--header-from),var(--header-to));
+  color:#fff; padding:14px 24px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.app-header .brand { font-size:1.15rem; font-weight:700; }
+.app-header .brand-sub { font-size:.75rem; opacity:.85; }
+
+/* ─── Tabs ─── */
+.main-nav { background:#fff; border-bottom:1px solid #e2e8f0; padding:0 20px; }
+.main-nav .nav-link {
+  color:#64748b; font-weight:500; padding:12px 20px;
+  border:none; border-bottom:3px solid transparent;
+  border-radius:0; transition:all .2s;
+}
+.main-nav .nav-link:hover { color:#ea580c; }
+.main-nav .nav-link.active { color:#ea580c; border-bottom-color:#ea580c; background:transparent; }
+
+/* ─── Filter Bar ─── */
+.filter-bar {
+  background:#fff; border-bottom:1px solid #e2e8f0;
+  padding:10px 20px; display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
+}
+.filter-bar label { font-size:.72rem; color:#6b7280; margin-bottom:2px; display:block; }
+.filter-bar select, .filter-bar input[type=month] {
+  border:1px solid #d1d5db; border-radius:8px;
+  padding:5px 10px; font-size:.82rem; color:#1e293b;
+  background:#fff; min-width:130px;
+}
+.filter-bar select:focus, .filter-bar input[type=month]:focus {
+  outline:none; border-color:#ea580c; box-shadow:0 0 0 2px rgba(234,88,12,.15);
+}
+.btn-reset {
+  background:#fff; border:1px solid #d1d5db; color:#64748b;
+  border-radius:8px; padding:5px 14px; font-size:.82rem;
+  cursor:pointer; transition:all .15s;
+}
+.btn-reset:hover { background:#fef3c7; border-color:#f59e0b; color:#92400e; }
+
+/* ─── Fiscal Year Buttons ─── */
+.fy-btn {
+  background:#fff7ed; border:1px solid #fed7aa; color:#9a3412;
+  border-radius:8px; padding:5px 12px; font-size:.8rem; font-weight:600;
+  cursor:pointer; transition:all .15s; white-space:nowrap;
+}
+.fy-btn:hover { background:#ffedd5; border-color:#fb923c; }
+.fy-btn.active { background:#ea580c; border-color:#ea580c; color:#fff; }
+.fy-sep { width:1px; background:#e5e7eb; align-self:stretch; margin:4px 2px; }
+
+/* ─── KPI Cards ─── */
+.kpi-card {
+  background:#fff; border-radius:12px; padding:18px 20px;
+  box-shadow:var(--card-shadow); border-left:4px solid;
+  transition:box-shadow .2s, transform .15s;
+  cursor:pointer; user-select:none; position:relative;
+}
+.kpi-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.14); transform:translateY(-1px); }
+.kpi-card.active-filter { box-shadow:0 0 0 3px #ea580c44, 0 4px 12px rgba(0,0,0,.12); }
+.kpi-card.blue  { border-color:#3b82f6; }
+.kpi-card.red   { border-color:#ef4444; }
+.kpi-card.orange{ border-color:#f97316; }
+.kpi-card.green { border-color:#10b981; }
+.kpi-card .kpi-val { font-size:1.9rem; font-weight:700; line-height:1; }
+.kpi-card .kpi-lbl { font-size:.78rem; color:#6b7280; margin-top:3px; }
+.kpi-card .kpi-hint { font-size:.68rem; color:#d1d5db; margin-top:4px; }
+.kpi-card.active-filter .kpi-hint { color:#ea580c; font-weight:600; }
+.kpi-card .kpi-icon { font-size:1.6rem; opacity:.2; }
+
+/* ─── Severity Cards ─── */
+.sev-card {
+  background:#fff; border-radius:10px; padding:14px 12px;
+  text-align:center; box-shadow:var(--card-shadow); border-top:3px solid;
+}
+.sev-card .sev-val { font-size:1.5rem; font-weight:700; }
+.sev-card .sev-lbl { font-size:.7rem; color:#6b7280; margin-top:2px; }
+
+/* ─── Section Labels ─── */
+.sec-label {
+  font-size:.7rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.8px; color:#94a3b8; margin:20px 0 10px;
+}
+
+/* ─── Chart Cards ─── */
+.chart-card {
+  background:#fff; border-radius:12px; padding:18px 18px 14px;
+  box-shadow:var(--card-shadow); height:100%;
+}
+.chart-card .chart-title { font-size:.88rem; font-weight:600; color:#374151; margin-bottom:12px; }
+.chart-card .chart-badge {
+  font-size:.75rem; background:#fef3c7; color:#92400e;
+  border-radius:20px; padding:2px 10px; margin-left:8px;
+}
+
+/* ─── Tables ─── */
+.table-card { background:#fff; border-radius:12px; padding:16px 18px; box-shadow:var(--card-shadow); }
+.table-card .table-title { font-size:.88rem; font-weight:600; color:#374151; margin-bottom:10px; }
+.dash-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.dash-table th {
+  background:#f8f9fa; color:#6b7280; font-weight:600;
+  font-size:.72rem; text-transform:uppercase; letter-spacing:.5px;
+  padding:8px 10px; border-bottom:2px solid #e5e7eb; text-align:left;
+}
+.dash-table td { padding:7px 10px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.dash-table tr:last-child td { border-bottom:none; }
+.dash-table tr:hover td { background:#fafafa; }
+#tblHAD tbody td { color:#dc2626; font-weight:600; }
+
+/* Severity badge in table/grid */
+.sev-badge {
+  display:inline-block; width:24px; height:24px; line-height:24px;
+  text-align:center; border-radius:50%; color:#fff; font-weight:700;
+  font-size:.72rem;
+}
+
+/* ─── Data Grid (Tab 2) ─── */
+.grid-wrap { overflow-x:auto; }
+.data-grid { width:100%; border-collapse:collapse; font-size:.8rem; }
+.data-grid th {
+  background:#fef3c7; color:#78350f; font-weight:600; font-size:.72rem;
+  padding:9px 10px; border-bottom:2px solid #fde68a; position:sticky; top:0; z-index:1;
+  white-space:nowrap;
+}
+.data-grid td { padding:7px 10px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
+.data-grid tr:nth-child(even) td { background:#fafafa; }
+.data-grid tr:hover td { background:#fff7ed; }
+
+/* ─── Pagination ─── */
+.pagination-bar {
+  display:flex; align-items:center; gap:8px; margin-top:12px;
+  justify-content:center; flex-wrap:wrap;
+}
+.pagination-bar button {
+  border:1px solid #d1d5db; background:#fff; color:#374151;
+  border-radius:8px; padding:5px 14px; font-size:.82rem; cursor:pointer;
+  transition:all .15s;
+}
+.pagination-bar button:hover:not(:disabled) { background:#fef3c7; border-color:#f59e0b; }
+.pagination-bar button:disabled { opacity:.4; cursor:not-allowed; }
+.pagination-bar .page-info { font-size:.82rem; color:#6b7280; }
+
+/* ─── Summary Table (Tab 2) ─── */
+.summary-grid { overflow-x:auto; }
+.summary-tbl { border-collapse:collapse; width:100%; font-size:.82rem; }
+.summary-tbl th {
+  background:#fef3c7; color:#78350f; padding:8px 12px; text-align:center;
+  font-weight:600; border:1px solid #fde68a; white-space:nowrap; font-size:.72rem;
+}
+.summary-tbl td {
+  padding:8px 12px; text-align:center; font-weight:700;
+  border:1px solid #f1f5f9; font-size:.9rem;
+}
+
+/* ─── Loading ─── */
+#loadOverlay {
+  position:fixed; inset:0; background:rgba(255,255,255,.95);
+  z-index:9999; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:12px;
+}
+.spin {
+  width:48px; height:48px; border:4px solid #fde68a;
+  border-top-color:#ea580c; border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ─── Content pad ─── */
+.tab-content-inner { padding:0 20px 40px; }
+
+/* ─── Section Tag Badge ─── */
+.section-tag {
+  display:inline-block; font-size:.62rem; font-weight:700;
+  background:#ea580c; color:#fff;
+  padding:1px 7px; border-radius:4px; margin-right:7px;
+  letter-spacing:.4px; vertical-align:middle;
+  font-family:'Courier New',monospace;
+}
+.section-tag.sub { background:#9a3412; font-size:.58rem; }
+
+/* ─── Responsive ─── */
+@media(max-width:768px){
+  .app-header { padding:10px 14px; flex-direction:column; align-items:flex-start; gap:4px; }
+  .app-header .brand { font-size:1rem; }
+  #headerInfo { font-size:.68rem; opacity:.8; }
+  .main-nav .nav-link { padding:10px 14px; font-size:.85rem; }
+  .filter-bar { padding:8px 12px; gap:8px; }
+  .filter-bar select, .filter-bar input[type=month] { min-width:unset; width:100%; }
+  .fy-btn { font-size:.72rem; padding:4px 8px; }
+  .kpi-card .kpi-val { font-size:1.4rem; }
+  canvas { max-height:220px !important; }
+  .table-card { padding:12px 10px; }
+  .chart-card { padding:12px 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loadOverlay">
+  <div class="spin"></div>
+  <div style="font-size:.9rem;color:#78350f;font-weight:600;">กำลังโหลดข้อมูล...</div>
+  <div id="loadMsg" style="font-size:.78rem;color:#9ca3af;"></div>
+</div>
+
+<!-- Header -->
+<div class="app-header">
+  <div>
+    <div class="brand"><i class="bi bi-activity me-2"></i>Medication Error Dashboard</div>
+    <div class="brand-sub">เภสัชกรรม รพ.กำแพงเพชร</div>
+  </div>
+  <div style="font-size:.78rem;opacity:.85;" id="headerInfo"></div>
+</div>
+
+<!-- Tabs -->
+<nav class="main-nav">
+  <ul class="nav" id="mainTabs">
+    <li class="nav-item">
+      <button class="nav-link active" data-tab="tab1">
+        <i class="bi bi-bar-chart-line me-1"></i>Overview &amp; Summary
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-tab="tab2">
+        <i class="bi bi-table me-1"></i>Detailed Data &amp; Filters
+      </button>
+    </li>
+  </ul>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     TAB 1
+     ════════════════════════════════════════════ -->
+<div id="tab1">
+
+  <!-- T1-1: Date filter bar + Fiscal Year buttons -->
+  <div class="filter-bar">
+    <span class="section-tag" style="align-self:center;font-size:.7rem;">T1-1</span>
+    <!-- Fiscal year quick buttons -->
+    <div class="d-flex align-items-end gap-1">
+      <div style="font-size:.72rem;color:#6b7280;margin-bottom:6px;width:100%;text-align:center;">ปีงบประมาณ</div>
+    </div>
+    <div class="d-flex gap-1 align-items-center" style="padding-bottom:2px;">
+      <button class="fy-btn" data-from="2025-10" data-to="2026-09">ปีงบ 2569</button>
+      <button class="fy-btn" data-from="2024-10" data-to="2025-09">ปีงบ 2568</button>
+      <button class="fy-btn" data-from="2023-10" data-to="2024-09">ปีงบ 2567</button>
+    </div>
+    <div class="fy-sep"></div>
+    <div>
+      <label>เดือนเริ่มต้น</label>
+      <input type="month" id="t1From"/>
+    </div>
+    <div>
+      <label>เดือนสิ้นสุด</label>
+      <input type="month" id="t1To"/>
+    </div>
+    <div class="d-flex align-items-end">
+      <button class="btn-reset" id="t1Reset"><i class="bi bi-arrow-counterclockwise me-1"></i>รีเซ็ต</button>
+    </div>
+    <div class="ms-auto d-flex align-items-end">
+      <span id="t1Count" style="font-size:.78rem;color:#6b7280;"></span>
+    </div>
+  </div>
+
+  <div class="tab-content-inner">
+
+    <!-- T1-2: KPI Cards (clickable filters) -->
+    <div class="sec-label"><span class="section-tag">T1-2</span>ภาพรวม — คลิกการ์ดเพื่อกรองข้อมูล</div>
+    <div class="row g-3 mb-2">
+      <div class="col-6 col-md-3">
+        <div class="kpi-card blue d-flex justify-content-between align-items-center" id="kpiCardTotal" onclick="setKpiFilter('total')">
+          <div>
+            <div class="kpi-val text-primary" id="k1Total">–</div>
+            <div class="kpi-lbl">Total Errors</div>
+            <div class="kpi-hint"><i class="bi bi-funnel me-1"></i>คลิกเพื่อล้างตัวกรอง</div>
+          </div>
+          <i class="bi bi-clipboard2-pulse kpi-icon text-primary"></i>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card red d-flex justify-content-between align-items-center" id="kpiCardHAD" onclick="setKpiFilter('had')">
+          <div>
+            <div class="kpi-val text-danger" id="k1HAD">–</div>
+            <div class="kpi-lbl">HAD (เกิดอันตราย)</div>
+            <div class="kpi-hint"><i class="bi bi-funnel me-1"></i>คลิกกรองเฉพาะ HAD=Y</div>
+          </div>
+          <i class="bi bi-exclamation-triangle kpi-icon text-danger"></i>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card orange d-flex justify-content-between align-items-center" id="kpiCardIPD" onclick="setKpiFilter('ipd')">
+          <div>
+            <div class="kpi-val" style="color:#f97316;" id="k1IPD">–</div>
+            <div class="kpi-lbl">IPD</div>
+            <div class="kpi-hint"><i class="bi bi-funnel me-1"></i>คลิกกรองเฉพาะ IPD</div>
+          </div>
+          <i class="bi bi-hospital kpi-icon" style="color:#f97316;"></i>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card green d-flex justify-content-between align-items-center" id="kpiCardOPD" onclick="setKpiFilter('opd')">
+          <div>
+            <div class="kpi-val text-success" id="k1OPD">–</div>
+            <div class="kpi-lbl">OPD</div>
+            <div class="kpi-hint"><i class="bi bi-funnel me-1"></i>คลิกกรองเฉพาะ OPD</div>
+          </div>
+          <i class="bi bi-person-lines-fill kpi-icon text-success"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- T1-3: Severity Cards -->
+    <div class="sec-label"><span class="section-tag">T1-3</span>ระดับความรุนแรง (Severity Level Cards)</div>
+    <div class="row g-2 mb-3" id="sevCardsRow"></div>
+
+    <!-- T1-4: Donut + HAD Table -->
+    <div class="sec-label"><span class="section-tag">T1-4</span>สัดส่วนระดับความรุนแรง</div>
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-6">
+        <div class="chart-card">
+          <div class="chart-title"><span class="section-tag sub">T1-4a</span><i class="bi bi-pie-chart me-1"></i>Severity Distribution</div>
+          <canvas id="chartDonut" style="max-height:280px;"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="table-card h-100">
+          <div class="table-title"><span class="section-tag sub">T1-7a</span><i class="bi bi-shield-exclamation me-1 text-danger"></i>High Alert Drug (HAD) by Severity</div>
+          <table class="dash-table" id="tblHAD">
+            <thead><tr><th>ระดับ</th><th class="text-end">จำนวน</th><th class="text-end">%</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- T1-5: Subtype Frequency by Error Type (4 charts 2x2) -->
+    <div class="sec-label"><span class="section-tag">T1-5</span>หัวข้อย่อยที่เกิด Error (Subtype Frequency)</div>
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">
+            <span class="section-tag sub">T1-5a</span><i class="bi bi-prescription2 me-1" style="color:#3b82f6;"></i>Prescription Errors — Top Subtypes
+            <span class="chart-badge" id="b5aPres">0</span>
+          </div>
+          <canvas id="c5aPres" style="max-height:300px;"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">
+            <span class="section-tag sub">T1-5b</span><i class="bi bi-box-seam me-1" style="color:#8b5cf6;"></i>Pre-Dispensing Errors — Top Subtypes
+            <span class="chart-badge" id="b5bPreD">0</span>
+          </div>
+          <canvas id="c5bPreD" style="max-height:300px;"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">
+            <span class="section-tag sub">T1-5c</span><i class="bi bi-capsule me-1" style="color:#10b981;"></i>Dispensing Errors — Top Subtypes
+            <span class="chart-badge" id="b5cDisp">0</span>
+          </div>
+          <canvas id="c5cDisp" style="max-height:300px;"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">
+            <span class="section-tag sub">T1-5d</span><i class="bi bi-syringe me-1" style="color:#f97316;"></i>Administration Errors — Top Subtypes
+            <span class="chart-badge" id="b5dAdm">0</span>
+          </div>
+          <canvas id="c5dAdm" style="max-height:300px;"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- T1-6: Top Wards by Error Type (4 charts 2x2) -->
+    <div class="sec-label"><span class="section-tag">T1-6</span>Top Wards by Error Type</div>
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">
+            <span class="section-tag sub">T1-6a</span><i class="bi bi-prescription2 me-1" style="color:#3b82f6;"></i>Prescription — Top Wards
+            <span class="chart-badge" id="b6aPres">0</span>
+          </div>
+          <canvas id="c6aPres" style="max-height:280px;"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">
+            <span class="section-tag sub">T1-6b</span><i class="bi bi-box-seam me-1" style="color:#8b5cf6;"></i>Pre-Dispensing — Top Wards
+            <span class="chart-badge" id="b6bPreD">0</span>
+          </div>
+          <canvas id="c6bPreD" style="max-height:280px;"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">
+            <span class="section-tag sub">T1-6c</span><i class="bi bi-capsule me-1" style="color:#10b981;"></i>Dispensing — Top Wards
+            <span class="chart-badge" id="b6cDisp">0</span>
+          </div>
+          <canvas id="c6cDisp" style="max-height:280px;"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">
+            <span class="section-tag sub">T1-6d</span><i class="bi bi-syringe me-1" style="color:#f97316;"></i>Administration — Top Wards
+            <span class="chart-badge" id="b6dAdm">0</span>
+          </div>
+          <canvas id="c6dAdm" style="max-height:280px;"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- T1-7: Tables -->
+    <div class="sec-label"><span class="section-tag">T1-7</span>ตารางสรุป</div>
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <div class="table-card h-100">
+          <div class="table-title"><span class="section-tag sub">T1-7b</span><i class="bi bi-arrow-left-right me-1 text-warning"></i>คู่ยา Pre-Dispensing Error <small class="text-muted">(top 10)</small></div>
+          <table class="dash-table" id="tblPreDisp">
+            <thead><tr><th>ยาที่ 1</th><th>ยาที่ 2</th><th class="text-end">จำนวน</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="table-card h-100">
+          <div class="table-title"><span class="section-tag sub">T1-7c</span><i class="bi bi-arrow-left-right me-1 text-success"></i>คู่ยา Dispensing Error <small class="text-muted">(top 10)</small></div>
+          <table class="dash-table" id="tblDisp">
+            <thead><tr><th>ยาที่ 1</th><th>ยาที่ 2</th><th class="text-end">จำนวน</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-content-inner -->
+</div><!-- /tab1 -->
+
+<!-- ════════════════════════════════════════════
+     TAB 2
+     ════════════════════════════════════════════ -->
+<div id="tab2" style="display:none;">
+
+  <!-- Filter bar -->
+  <div class="filter-bar" style="position:relative;">
+    <span class="section-tag" style="align-self:center;font-size:.7rem;">T2-1</span>
+    <div>
+      <label>เดือนเริ่มต้น</label>
+      <input type="month" id="t2From"/>
+    </div>
+    <div>
+      <label>เดือนสิ้นสุด</label>
+      <input type="month" id="t2To"/>
+    </div>
+    <div class="d-flex gap-1 align-items-center flex-wrap" style="padding-bottom:2px;">
+      <button class="fy-btn t2-fy-btn" data-from="2025-10" data-to="2026-09">ปีงบ 2569</button>
+      <button class="fy-btn t2-fy-btn" data-from="2024-10" data-to="2025-09">ปีงบ 2568</button>
+      <button class="fy-btn t2-fy-btn" data-from="2023-10" data-to="2024-09">ปีงบ 2567</button>
+    </div>
+    <div>
+      <label>หน่วยที่รายงาน</label>
+      <select id="f2Unit"><option value="">ทั้งหมด</option></select>
+    </div>
+    <div>
+      <label>หน่วยที่เกิดเหตุการณ์ (Ward)</label>
+      <select id="f2Ward"><option value="">ทั้งหมด</option></select>
+    </div>
+    <div>
+      <label>ระดับ (Severity)</label>
+      <select id="f2Sev"><option value="">ทั้งหมด</option></select>
+    </div>
+    <div>
+      <label>หัวข้อ Med Error</label>
+      <select id="f2Type"><option value="">ทั้งหมด</option></select>
+    </div>
+    <div>
+      <label>Subtype</label>
+      <select id="f2Sub" style="min-width:180px;"><option value="">ทั้งหมด</option></select>
+    </div>
+    <div class="d-flex align-items-end">
+      <button class="btn-reset" id="t2Reset"><i class="bi bi-arrow-counterclockwise me-1"></i>รีเซ็ต</button>
+    </div>
+    <div class="ms-auto d-flex align-items-end">
+      <span id="t2Count" style="font-size:.78rem;color:#6b7280;"></span>
+    </div>
+  </div>
+
+  <div class="tab-content-inner">
+
+    <!-- Summary Table -->
+    <div class="sec-label"><span class="section-tag">T2-2</span>สรุปรวม</div>
+    <div class="table-card mb-3">
+      <div class="summary-grid">
+        <table class="summary-tbl" id="tblSummary2">
+          <thead>
+            <tr>
+              <th>จำนวน</th><th>HAD</th><th>OPD</th><th>IPD</th>
+              <th style="color:var(--sev-A)">A</th>
+              <th style="color:var(--sev-B)">B</th>
+              <th style="color:var(--sev-C)">C</th>
+              <th style="color:var(--sev-D)">D</th>
+              <th style="color:var(--sev-E)">E</th>
+              <th style="color:var(--sev-F)">F</th>
+              <th style="color:var(--sev-G)">G</th>
+              <th style="color:var(--sev-H)">H</th>
+              <th style="color:var(--sev-I)">I</th>
+            </tr>
+          </thead>
+          <tbody><tr id="summaryRow2"><td colspan="13" class="text-center text-muted">–</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Data Grid -->
+    <div class="sec-label"><span class="section-tag">T2-3</span>ข้อมูลรายละเอียด</div>
+    <div class="table-card">
+      <div class="grid-wrap">
+        <table class="data-grid">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>วันที่</th>
+              <th>Ward (แผนก)</th>
+              <th>Type (หัวข้อ Med Error)</th>
+              <th>Subtype</th>
+              <th>ระดับ</th>
+              <th>ยาที่ 1</th>
+              <th>ยาที่ 2</th>
+              <th>Remark</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody id="gridBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination-bar" id="pagination">
+        <button id="btnPrev" onclick="changePage(-1)" disabled>‹ ก่อนหน้า</button>
+        <span class="page-info" id="pageInfo"></span>
+        <button id="btnNext" onclick="changePage(1)">ถัดไป ›</button>
+      </div>
+    </div>
+
+  </div><!-- /tab-content-inner -->
+</div><!-- /tab2 -->
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════
+   CONSTANTS & STATE
+   ═══════════════════════════════════════════════ */
+const SEV_ORDER  = ['A','B','C','D','E','F','G','H','I'];
+const SEV_VALID  = new Set(SEV_ORDER);
+const SEV_COLOR  = {
+  A:'#7c3aed',B:'#3b82f6',C:'#f59e0b',D:'#f97316',
+  E:'#ef4444',F:'#dc2626',G:'#b91c1c',H:'#991b1b',I:'#7f1d1d'
+};
+const SEV_BG = {
+  A:'#ede9fe',B:'#dbeafe',C:'#fef3c7',D:'#ffedd5',
+  E:'#fee2e2',F:'#fee2e2',G:'#fee2e2',H:'#fee2e2',I:'#fee2e2'
+};
+const PAGE_SIZE = 50;
+
+// T1-5 / T1-6 chart config
+const TYPE_CHARTS = [
+  { type:'Prescribtion Error',   color:'#3b82f6', icon:'b5aPres', sub:'c5aPres', ward:'b6aPres', wc:'c6aPres' },
+  { type:'Pre-Dispensing Error', color:'#8b5cf6', icon:'b5bPreD', sub:'c5bPreD', ward:'b6bPreD', wc:'c6bPreD' },
+  { type:'Dispensing Error',     color:'#10b981', icon:'b5cDisp', sub:'c5cDisp', ward:'b6cDisp', wc:'c6cDisp' },
+  { type:'Administrating Error', color:'#f97316', icon:'b5dAdm',  sub:'c5dAdm',  ward:'b6dAdm',  wc:'c6dAdm'  },
+];
+
+let allData   = [];
+let tab1Data  = [];
+let tab2Data  = [];
+let t2Page    = 1;
+let t1CardFilter = { unit:'', had:'' };
+let globalMinYM = '', globalMaxYM = '';
+const charts  = {};
+
+Chart.defaults.font.family  = "'Segoe UI','Noto Sans Thai',sans-serif";
+Chart.defaults.color        = '#6b7280';
+Chart.defaults.borderColor  = '#f1f5f9';
+
+/* ═══════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════ */
+function parseDate(s) {
+  if (!s) return null;
+  s = s.trim();
+  // Format 1: YYYY-MM-DD (Gregorian ISO)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s.slice(0,10));
+  // Format 2: D/M/YYYY (Gregorian 4-digit year)
+  const m4 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m4) return new Date(+m4[3], +m4[2]-1, +m4[1]);
+  // Format 3: D/M/YY (Thai Buddhist Era short year, e.g. 68 = B.E.2568 = Gregorian 2025)
+  // Conversion: Gregorian = 2-digit-year + 1957
+  const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if (m2) return new Date(+m2[3] + 1957, +m2[2]-1, +m2[1]);
+  return null;
+}
+function fmtDateStr(d) {
+  const dd   = String(d.getDate()).padStart(2,'0');
+  const mm   = String(d.getMonth()+1).padStart(2,'0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+function toYM(d) {
+  if (!d) return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function fmt(n) { return (n||0).toLocaleString('th-TH'); }
+function clean(s) { return (s||'').trim(); }
+function isValidRow(r) {
+  return r.medid && r.medid.startsWith('M') && SEV_VALID.has(clean(r.severe).toUpperCase());
+}
+
+function countBy(arr, key) {
+  const m = {};
+  arr.forEach(r => {
+    const v = clean(r[key]) || '(ไม่ระบุ)';
+    m[v] = (m[v]||0) + 1;
+  });
+  return m;
+}
+
+function topN(obj, n=10) {
+  return Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
+}
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+/* ═══════════════════════════════════════════════
+   LOAD
+   ═══════════════════════════════════════════════ */
+Papa.parse('data.csv', {
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  step(row) {
+    const r = row.data;
+    if (!isValidRow(r)) return;
+    r.severe   = clean(r.severe).toUpperCase();
+    r._date    = parseDate(r.dateacc) || parseDate(r.dateinput);
+    r._ym      = toYM(r._date);
+    r._dateStr = r._date ? fmtDateStr(r._date) : '';
+    allData.push(r);
+    if (allData.length % 5000 === 0)
+      document.getElementById('loadMsg').textContent = `โหลด ${fmt(allData.length)} rows...`;
+  },
+  complete() {
+    document.getElementById('loadOverlay').style.display = 'none';
+    initAll();
+  },
+  error(e) {
+    document.getElementById('loadMsg').textContent = 'Error: '+e.message;
+  }
+});
+
+/* ═══════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════ */
+function initAll() {
+  const yms  = allData.map(r=>r._ym).filter(Boolean).sort();
+  const minYM = yms[0], maxYM = yms[yms.length-1];
+  globalMinYM = minYM; globalMaxYM = maxYM;
+
+  document.getElementById('t1From').value = minYM;
+  document.getElementById('t1To').value   = maxYM;
+  document.getElementById('t2From').value = minYM;
+  document.getElementById('t2To').value   = maxYM;
+  document.getElementById('headerInfo').textContent =
+    `ข้อมูล: ${minYM} – ${maxYM}  |  ${fmt(allData.length)} records`;
+
+  // Fiscal year buttons
+  document.querySelectorAll('.fy-btn:not(.t2-fy-btn)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('t1From').value = btn.dataset.from;
+      document.getElementById('t1To').value   = btn.dataset.to;
+      document.querySelectorAll('.fy-btn:not(.t2-fy-btn)').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      t1CardFilter = { unit:'', had:'' };
+      renderTab1();
+    });
+  });
+
+  // Manual date change → deactivate fy buttons
+  ['t1From','t1To'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+      document.querySelectorAll('.fy-btn').forEach(b=>b.classList.remove('active'));
+      renderTab1();
+    });
+  });
+
+  document.getElementById('t1Reset').addEventListener('click', () => {
+    document.getElementById('t1From').value = minYM;
+    document.getElementById('t1To').value   = maxYM;
+    document.querySelectorAll('.fy-btn').forEach(b=>b.classList.remove('active'));
+    t1CardFilter = { unit:'', had:'' };
+    renderTab1();
+  });
+
+  // Tab nav
+  document.querySelectorAll('#mainTabs .nav-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#mainTabs .nav-link').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const t = btn.dataset.tab;
+      document.getElementById('tab1').style.display = (t==='tab1') ? '' : 'none';
+      document.getElementById('tab2').style.display = (t==='tab2') ? '' : 'none';
+      if (t === 'tab2') initTab2();
+    });
+  });
+
+  renderTab1();
+}
+
+/* ── KPI Card Filter ── */
+function setKpiFilter(which) {
+  const prev = JSON.stringify(t1CardFilter);
+  if (which==='total')    t1CardFilter = { unit:'', had:'' };
+  else if (which==='had') t1CardFilter = (t1CardFilter.had==='Y') ? { unit:'', had:'' } : { unit:'', had:'Y' };
+  else if (which==='ipd') t1CardFilter = (t1CardFilter.unit==='IPD') ? { unit:'', had:'' } : { unit:'IPD', had:'' };
+  else if (which==='opd') t1CardFilter = (t1CardFilter.unit==='OPD') ? { unit:'', had:'' } : { unit:'OPD', had:'' };
+  if (JSON.stringify(t1CardFilter) !== prev) renderTab1();
+}
+
+function updateKpiCardStates() {
+  document.getElementById('kpiCardTotal').classList.toggle('active-filter', !t1CardFilter.had && !t1CardFilter.unit);
+  document.getElementById('kpiCardHAD').classList.toggle('active-filter',  t1CardFilter.had==='Y');
+  document.getElementById('kpiCardIPD').classList.toggle('active-filter',  t1CardFilter.unit==='IPD');
+  document.getElementById('kpiCardOPD').classList.toggle('active-filter',  t1CardFilter.unit==='OPD');
+}
+
+/* ═══════════════════════════════════════════════
+   TAB 1
+   ═══════════════════════════════════════════════ */
+function renderTab1() {
+  const from = document.getElementById('t1From').value;
+  const to   = document.getElementById('t1To').value;
+
+  // Apply date filter then card filter
+  tab1Data = allData.filter(r => {
+    if (r._ym && from && r._ym < from) return false;
+    if (r._ym && to   && r._ym > to)   return false;
+    if (t1CardFilter.had  && r.HAD !== t1CardFilter.had) return false;
+    if (t1CardFilter.unit && clean(r.unit) !== t1CardFilter.unit) return false;
+    return true;
+  });
+
+  const baseCount = allData.filter(r => {
+    if (r._ym && from && r._ym < from) return false;
+    if (r._ym && to   && r._ym > to)   return false;
+    return true;
+  }).length;
+
+  document.getElementById('t1Count').textContent =
+    `แสดง ${fmt(tab1Data.length)} / ${fmt(baseCount)} records (total ${fmt(allData.length)})`;
+
+  updateKpiCardStates();
+  updateKPIs1();
+  updateSevCards();
+  updateDonut();
+  updateSubtypeCharts();
+  updateWardCharts();
+  updateHighAlertTable();
+  updateDrugPairTable('Pre-Dispensing Error', 'tblPreDisp');
+  updateDrugPairTable('Dispensing Error',     'tblDisp');
+}
+
+/* ── KPI ── */
+function updateKPIs1() {
+  // Show counts from DATE-only filtered data (not card-filtered) for correct total
+  const from = document.getElementById('t1From').value;
+  const to   = document.getElementById('t1To').value;
+  const base = allData.filter(r => {
+    if (r._ym && from && r._ym < from) return false;
+    if (r._ym && to   && r._ym > to)   return false;
+    return true;
+  });
+  document.getElementById('k1Total').textContent = fmt(base.length);
+  document.getElementById('k1HAD').textContent   = fmt(base.filter(r=>r.HAD==='Y').length);
+  document.getElementById('k1IPD').textContent   = fmt(base.filter(r=>clean(r.unit)==='IPD').length);
+  document.getElementById('k1OPD').textContent   = fmt(base.filter(r=>clean(r.unit)==='OPD').length);
+}
+
+/* ── Severity Cards ── */
+function updateSevCards() {
+  const showLevels = ['A','B','C','D','E','G','H','I'];
+  const sevMap = countBy(tab1Data, 'severe');
+  const total  = tab1Data.length || 1;
+  const html   = showLevels.map(s => {
+    const cnt = sevMap[s] || 0;
+    const pct = (cnt/total*100).toFixed(1);
+    return `<div class="col">
+      <div class="sev-card" style="border-color:${SEV_COLOR[s]};background:${SEV_BG[s]};">
+        <div class="sev-val" style="color:${SEV_COLOR[s]};">${fmt(cnt)}</div>
+        <div class="sev-lbl">Level ${s}</div>
+        <div style="font-size:.68rem;color:#9ca3af;">${pct}%</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('sevCardsRow').innerHTML = html;
+}
+
+/* ── Donut ── */
+function updateDonut() {
+  const sevMap = countBy(tab1Data, 'severe');
+  const levels = SEV_ORDER.filter(s=>sevMap[s]>0);
+  destroyChart('donut');
+  const ctx = document.getElementById('chartDonut').getContext('2d');
+  const total = tab1Data.length || 1;
+  charts.donut = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels: levels.map(s=>`Level ${s} (${(sevMap[s]/total*100).toFixed(1)}%)`),
+      datasets:[{
+        data: levels.map(s=>sevMap[s]),
+        backgroundColor: levels.map(s=>SEV_COLOR[s]),
+        borderWidth:2, borderColor:'#fff', hoverOffset:8
+      }]
+    },
+    options:{
+      responsive:true, cutout:'60%',
+      plugins:{
+        legend:{ position:'bottom', labels:{boxWidth:12, padding:10, font:{size:11}} }
+      }
+    }
+  });
+}
+
+/* ── T1-5: Subtype Frequency Charts ── */
+function updateSubtypeCharts() {
+  TYPE_CHARTS.forEach(cfg => {
+    mkHBarChart(cfg.type, cfg.sub, cfg.icon, cfg.color, 'subtype', 10);
+  });
+}
+
+/* ── T1-6: Ward Charts ── */
+function updateWardCharts() {
+  TYPE_CHARTS.forEach(cfg => {
+    mkHBarChart(cfg.type, cfg.wc, cfg.ward, cfg.color, 'ward', 8);
+  });
+}
+
+function mkHBarChart(typeName, canvasId, badgeId, color, groupKey, n) {
+  const rows = tab1Data.filter(r=>clean(r.type)===typeName);
+  document.getElementById(badgeId).textContent = fmt(rows.length);
+
+  const map   = countBy(rows, groupKey);
+  const pairs = topN(map, n);
+
+  destroyChart(canvasId);
+  if (!pairs.length) return;
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  charts[canvasId] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: pairs.map(p=>p[0]),
+      datasets:[{
+        data: pairs.map(p=>p[1]),
+        backgroundColor: color+'cc',
+        borderColor: color,
+        borderWidth:1, borderRadius:4, borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:'y', responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:'#f1f5f9'}, ticks:{font:{size:10}}, beginAtZero:true},
+        y:{grid:{display:false},   ticks:{font:{size:10}}}
+      }
+    }
+  });
+}
+
+/* ── High Alert Drug Table ── */
+function updateHighAlertTable() {
+  const hadRows = tab1Data.filter(r=>r.HAD==='Y');
+  const total   = hadRows.length || 1;
+  const sevMap  = countBy(hadRows, 'severe');
+  const tbody   = document.querySelector('#tblHAD tbody');
+  if (!hadRows.length) { tbody.innerHTML='<tr><td colspan="3" class="text-center text-muted">ไม่มีข้อมูล</td></tr>'; return; }
+
+  tbody.innerHTML = SEV_ORDER
+    .filter(s=>sevMap[s])
+    .map(s=>`<tr>
+      <td><span class="sev-badge" style="background:${SEV_COLOR[s]};">${s}</span></td>
+      <td class="text-end fw-semibold">${fmt(sevMap[s])}</td>
+      <td class="text-end text-muted">${(sevMap[s]/total*100).toFixed(1)}%</td>
+    </tr>`)
+    .join('') +
+    `<tr style="background:#fef3c7;">
+      <td><strong>รวม</strong></td>
+      <td class="text-end fw-bold">${fmt(hadRows.length)}</td>
+      <td class="text-end fw-bold">100%</td>
+    </tr>`;
+}
+
+/* ── Drug Pair Tables ── */
+function updateDrugPairTable(typeName, tableId) {
+  const rows = tab1Data.filter(r =>
+    clean(r.type) === typeName &&
+    clean(r.drug_name1) && clean(r.drug_name2)
+  );
+  const pairMap = {};
+  rows.forEach(r => {
+    const key = clean(r.drug_name1) + '|||' + clean(r.drug_name2);
+    pairMap[key] = (pairMap[key]||0) + 1;
+  });
+  const top = Object.entries(pairMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  if (!top.length) { tbody.innerHTML='<tr><td colspan="3" class="text-center text-muted">ไม่มีข้อมูล</td></tr>'; return; }
+  tbody.innerHTML = top.map(([k,v]) => {
+    const [d1,d2] = k.split('|||');
+    return `<tr>
+      <td style="font-size:.78rem;">${d1}</td>
+      <td style="font-size:.78rem;">${d2}</td>
+      <td class="text-end fw-semibold">${fmt(v)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════
+   TAB 2
+   ═══════════════════════════════════════════════ */
+let tab2Inited = false;
+
+function initTab2() {
+  if (!tab2Inited) {
+    populateDropdowns2();
+    tab2Inited = true;
+
+    ['t2From','t2To','f2Unit','f2Ward','f2Sev','f2Type','f2Sub'].forEach(id =>
+      document.getElementById(id).addEventListener('change', () => { t2Page=1; renderTab2(); }));
+
+    document.querySelectorAll('.t2-fy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('t2From').value = btn.dataset.from;
+        document.getElementById('t2To').value   = btn.dataset.to;
+        document.querySelectorAll('.t2-fy-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        t2Page=1; renderTab2();
+      });
+    });
+
+    document.getElementById('t2Reset').addEventListener('click', () => {
+      document.getElementById('t2From').value = globalMinYM;
+      document.getElementById('t2To').value   = globalMaxYM;
+      document.querySelectorAll('.t2-fy-btn').forEach(b=>b.classList.remove('active'));
+      ['f2Unit','f2Ward','f2Sev','f2Type','f2Sub'].forEach(id =>
+        document.getElementById(id).value = '');
+      t2Page=1; renderTab2();
+    });
+  }
+  renderTab2();
+}
+
+function populateDropdowns2() {
+  const sortedUniq = (arr) => [...new Set(arr.filter(Boolean).map(v=>v.trim()))].sort();
+
+  const fill = (id, vals) => {
+    const sel = document.getElementById(id);
+    vals.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  };
+
+  fill('f2Unit', sortedUniq(allData.map(r=>r.unit)));
+  fill('f2Ward', sortedUniq(allData.map(r=>r.ward)));
+  fill('f2Sev',  SEV_ORDER.filter(s=>allData.some(r=>r.severe===s)));
+  fill('f2Type', sortedUniq(allData.map(r=>r.type)));
+  fill('f2Sub',  sortedUniq(allData.map(r=>r.subtype)));
+}
+
+function renderTab2() {
+  const from = document.getElementById('t2From').value;
+  const to   = document.getElementById('t2To').value;
+  const unit = document.getElementById('f2Unit').value;
+  const ward = document.getElementById('f2Ward').value;
+  const sev  = document.getElementById('f2Sev').value;
+  const type = document.getElementById('f2Type').value;
+  const sub  = document.getElementById('f2Sub').value;
+
+  tab2Data = allData.filter(r => {
+    if (r._ym && from && r._ym < from) return false;
+    if (r._ym && to   && r._ym > to)   return false;
+    if (unit && clean(r.unit)    !== unit) return false;
+    if (ward && clean(r.ward)    !== ward) return false;
+    if (sev  && r.severe         !== sev)  return false;
+    if (type && clean(r.type)    !== type) return false;
+    if (sub  && clean(r.subtype) !== sub)  return false;
+    return true;
+  });
+
+  document.getElementById('t2Count').textContent =
+    `แสดง ${fmt(tab2Data.length)} / ${fmt(allData.length)} records`;
+
+  updateSummaryTable2();
+  renderDataGrid(t2Page);
+}
+
+function updateSummaryTable2() {
+  const d = tab2Data;
+  const sev = {};
+  SEV_ORDER.forEach(s=>{ sev[s]=0; });
+  d.forEach(r=>{ if(sev[r.severe]!==undefined) sev[r.severe]++; });
+
+  document.getElementById('summaryRow2').innerHTML = `
+    <td>${fmt(d.length)}</td>
+    <td>${fmt(d.filter(r=>r.HAD==='Y').length)}</td>
+    <td>${fmt(d.filter(r=>clean(r.unit)==='OPD').length)}</td>
+    <td>${fmt(d.filter(r=>clean(r.unit)==='IPD').length)}</td>
+    ${SEV_ORDER.map(s=>`<td style="color:${SEV_COLOR[s]};">${fmt(sev[s])}</td>`).join('')}
+  `;
+}
+
+function renderDataGrid(page) {
+  t2Page = page;
+  const totalPages = Math.max(1, Math.ceil(tab2Data.length / PAGE_SIZE));
+  t2Page = Math.max(1, Math.min(t2Page, totalPages));
+
+  const start = (t2Page-1) * PAGE_SIZE;
+  const slice = tab2Data.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('gridBody').innerHTML = slice.map((r,i) => `
+    <tr>
+      <td style="color:#9ca3af;">${fmt(start+i+1)}</td>
+      <td style="white-space:nowrap;">${r._dateStr||''}</td>
+      <td>${clean(r.ward)||'–'}</td>
+      <td>${clean(r.type)||'–'}</td>
+      <td style="font-size:.76rem;">${clean(r.subtype)||'–'}</td>
+      <td><span class="sev-badge" style="background:${SEV_COLOR[r.severe]||'#6b7280'};">${r.severe}</span></td>
+      <td style="font-size:.78rem;">${clean(r.drug_name1)||'–'}</td>
+      <td style="font-size:.78rem;">${clean(r.drug_name2)||'–'}</td>
+      <td style="font-size:.78rem;max-width:200px;">${clean(r.remark)||'–'}</td>
+      <td style="font-size:.78rem;max-width:200px;">${clean(r.detail)||'–'}</td>
+    </tr>`).join('');
+
+  document.getElementById('pageInfo').textContent =
+    `หน้า ${fmt(t2Page)} / ${fmt(totalPages)}  (${fmt(tab2Data.length)} records)`;
+  document.getElementById('btnPrev').disabled = (t2Page === 1);
+  document.getElementById('btnNext').disabled = (t2Page >= totalPages);
+}
+
+function changePage(dir) {
+  renderDataGrid(t2Page + dir);
+}
+</script>
+</body>
+</html>
