@@ -57,6 +57,32 @@ body { background:var(--bg); font-family:'Segoe UI','Noto Sans Thai',sans-serif;
 }
 .btn-reset:hover { background:#fef3c7; border-color:#f59e0b; color:#92400e; }
 
+/* ─── Multi-Select Dropdown ─── */
+.ms-wrap { position:relative; }
+.ms-btn {
+  border:1px solid #d1d5db; border-radius:8px;
+  padding:5px 10px; font-size:.82rem; color:#1e293b;
+  background:#fff; min-width:130px; cursor:pointer;
+  text-align:left; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:200px; display:block;
+}
+.ms-btn:focus { outline:none; border-color:#ea580c; box-shadow:0 0 0 2px rgba(234,88,12,.15); }
+.ms-dropdown {
+  display:none; position:absolute; top:calc(100% + 4px); left:0;
+  background:#fff; border:1px solid #d1d5db; border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,.1);
+  padding:6px 0; min-width:160px; max-height:220px;
+  overflow-y:auto; z-index:999;
+}
+.ms-dropdown.open { display:block; }
+.ms-item {
+  display:flex; align-items:center; gap:6px;
+  padding:5px 12px; font-size:.82rem; color:#1e293b;
+  cursor:pointer; user-select:none;
+}
+.ms-item:hover { background:#f1f5f9; }
+.ms-item input[type=checkbox] { accent-color:#ea580c; cursor:pointer; }
+
 /* ─── Fiscal Year Buttons ─── */
 .fy-btn {
   background:#fff7ed; border:1px solid #fed7aa; color:#9a3412;
@@ -480,25 +506,30 @@ body { background:var(--bg); font-family:'Segoe UI','Noto Sans Thai',sans-serif;
       <button class="fy-btn t2-fy-btn" data-from="2024-10" data-to="2025-09">ปีงบ 2568</button>
       <button class="fy-btn t2-fy-btn" data-from="2023-10" data-to="2024-09">ปีงบ 2567</button>
     </div>
-    <div>
+    <div class="ms-wrap">
       <label>หน่วยที่รายงาน</label>
-      <select id="f2Unit"><option value="">ทั้งหมด</option></select>
+      <button class="ms-btn" id="f2Unit-btn" type="button">ทั้งหมด ▾</button>
+      <div class="ms-dropdown" id="f2Unit-drop"></div>
     </div>
-    <div>
+    <div class="ms-wrap">
       <label>หน่วยที่เกิดเหตุการณ์ (Ward)</label>
-      <select id="f2Ward"><option value="">ทั้งหมด</option></select>
+      <button class="ms-btn" id="f2Ward-btn" type="button">ทั้งหมด ▾</button>
+      <div class="ms-dropdown" id="f2Ward-drop"></div>
     </div>
-    <div>
+    <div class="ms-wrap">
       <label>ระดับ (Severity)</label>
-      <select id="f2Sev"><option value="">ทั้งหมด</option></select>
+      <button class="ms-btn" id="f2Sev-btn" type="button">ทั้งหมด ▾</button>
+      <div class="ms-dropdown" id="f2Sev-drop"></div>
     </div>
-    <div>
+    <div class="ms-wrap">
       <label>หัวข้อ Med Error</label>
-      <select id="f2Type"><option value="">ทั้งหมด</option></select>
+      <button class="ms-btn" id="f2Type-btn" type="button">ทั้งหมด ▾</button>
+      <div class="ms-dropdown" id="f2Type-drop"></div>
     </div>
-    <div>
+    <div class="ms-wrap">
       <label>Subtype</label>
-      <select id="f2Sub" style="min-width:180px;"><option value="">ทั้งหมด</option></select>
+      <button class="ms-btn" id="f2Sub-btn" type="button" style="min-width:180px;">ทั้งหมด ▾</button>
+      <div class="ms-dropdown" id="f2Sub-drop"></div>
     </div>
     <div class="d-flex align-items-end">
       <button class="btn-reset" id="t2Reset"><i class="bi bi-arrow-counterclockwise me-1"></i>รีเซ็ต</button>
@@ -955,8 +986,15 @@ function initTab2() {
     populateDropdowns2();
     tab2Inited = true;
 
-    ['t2From','t2To','f2Unit','f2Ward','f2Sev','f2Type','f2Sub'].forEach(id =>
+    ['t2From','t2To'].forEach(id =>
       document.getElementById(id).addEventListener('change', () => { t2Page=1; renderTab2(); }));
+
+    ['f2Unit','f2Ward','f2Sev','f2Type','f2Sub'].forEach(id =>
+      bindMultiDrop(id + '-btn', id + '-drop'));
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+    });
 
     document.querySelectorAll('.t2-fy-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -973,52 +1011,86 @@ function initTab2() {
       document.getElementById('t2To').value   = globalMaxYM;
       document.querySelectorAll('.t2-fy-btn').forEach(b=>b.classList.remove('active'));
       ['f2Unit','f2Ward','f2Sev','f2Type','f2Sub'].forEach(id =>
-        document.getElementById(id).value = '');
+        resetMultiDrop(id + '-drop', id + '-btn'));
       t2Page=1; renderTab2();
     });
   }
   renderTab2();
 }
 
+function fillMultiDrop(dropId, vals) {
+  const drop = document.getElementById(dropId);
+  vals.forEach(v => {
+    const lbl = document.createElement('label');
+    lbl.className = 'ms-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = v;
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(' ' + v));
+    drop.appendChild(lbl);
+  });
+}
+
+function getMultiVals(dropId) {
+  return [...document.querySelectorAll('#' + dropId + ' input:checked')].map(c => c.value);
+}
+
+function updateMsBtn(btnId, dropId) {
+  const vals = getMultiVals(dropId);
+  const btn = document.getElementById(btnId);
+  if (vals.length === 0) btn.textContent = 'ทั้งหมด ▾';
+  else if (vals.length === 1) btn.textContent = vals[0] + ' ▾';
+  else btn.textContent = vals.length + ' รายการ ▾';
+}
+
+function resetMultiDrop(dropId, btnId) {
+  document.querySelectorAll('#' + dropId + ' input').forEach(c => c.checked = false);
+  document.getElementById(btnId).textContent = 'ทั้งหมด ▾';
+}
+
+function bindMultiDrop(btnId, dropId) {
+  const btn = document.getElementById(btnId);
+  const drop = document.getElementById(dropId);
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.ms-dropdown.open').forEach(d => { if (d !== drop) d.classList.remove('open'); });
+    drop.classList.toggle('open');
+  });
+  drop.addEventListener('change', () => {
+    updateMsBtn(btnId, dropId);
+    t2Page = 1; renderTab2();
+  });
+}
+
 function populateDropdowns2() {
-  const sortedUniq = (arr) => [...new Set(arr.filter(Boolean).map(v=>v.trim()))].sort();
-
-  const fill = (id, vals) => {
-    const sel = document.getElementById(id);
-    vals.forEach(v => {
-      const o = document.createElement('option');
-      o.value = v; o.textContent = v;
-      sel.appendChild(o);
-    });
-  };
-
-  fill('f2Unit', sortedUniq(allData.map(r=>r.unit)));
-  fill('f2Ward', sortedUniq(allData.map(r=>r.ward)));
-  fill('f2Sev',  SEV_ORDER.filter(s=>allData.some(r=>r.severe===s)));
-  fill('f2Type', sortedUniq(allData.map(r=>r.type)));
-  fill('f2Sub',  sortedUniq(allData.map(r=>r.subtype)));
+  const sortedUniq = arr => [...new Set(arr.filter(Boolean).map(v=>v.trim()))].sort();
+  fillMultiDrop('f2Unit-drop', sortedUniq(allData.map(r=>r.unit)));
+  fillMultiDrop('f2Ward-drop', sortedUniq(allData.map(r=>r.ward)));
+  fillMultiDrop('f2Sev-drop',  SEV_ORDER.filter(s=>allData.some(r=>r.severe===s)));
+  fillMultiDrop('f2Type-drop', sortedUniq(allData.map(r=>r.type)));
+  fillMultiDrop('f2Sub-drop',  sortedUniq(allData.map(r=>r.subtype)));
 }
 
 function renderTab2() {
-  const from = document.getElementById('t2From').value;
-  const to   = document.getElementById('t2To').value;
-  const unit = document.getElementById('f2Unit').value;
-  const ward = document.getElementById('f2Ward').value;
-  const sev  = document.getElementById('f2Sev').value;
-  const type = document.getElementById('f2Type').value;
-  const sub  = document.getElementById('f2Sub').value;
+  const from  = document.getElementById('t2From').value;
+  const to    = document.getElementById('t2To').value;
+  const units = getMultiVals('f2Unit-drop');
+  const wards = getMultiVals('f2Ward-drop');
+  const sevs  = getMultiVals('f2Sev-drop');
+  const types = getMultiVals('f2Type-drop');
+  const subs  = getMultiVals('f2Sub-drop');
 
   tab2Data = allData.filter(r => {
     if (r._ym && from && r._ym < from) return false;
     if (r._ym && to   && r._ym > to)   return false;
-    if (unit && clean(r.unit)    !== unit) return false;
-    if (ward && clean(r.ward)    !== ward) return false;
-    if (sev  && r.severe         !== sev)  return false;
-    if (type && clean(r.type)    !== type) return false;
-    if (sub  && clean(r.subtype) !== sub)  return false;
+    if (units.length && !units.includes(clean(r.unit)))   return false;
+    if (wards.length && !wards.includes(clean(r.ward)))   return false;
+    if (sevs.length  && !sevs.includes(r.severe))         return false;
+    if (types.length && !types.includes(clean(r.type)))   return false;
+    if (subs.length  && !subs.includes(clean(r.subtype))) return false;
     return true;
   });
- tab2Data.sort((a, b) => (b._date || 0) - (a._date || 0));
+
   document.getElementById('t2Count').textContent =
     `แสดง ${fmt(tab2Data.length)} / ${fmt(allData.length)} records`;
 
