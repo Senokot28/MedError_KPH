@@ -82,6 +82,9 @@ body { background:var(--bg); font-family:'Segoe UI','Noto Sans Thai',sans-serif;
 }
 .ms-item:hover { background:#f1f5f9; }
 .ms-item input[type=checkbox] { accent-color:#ea580c; cursor:pointer; }
+.chart-card .chart-title { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
+.ms-btn-sm { min-width:80px; font-size:.75rem; padding:3px 8px; max-width:160px; }
+.ms-dd-right { right:0; left:auto; }
 
 /* ─── Fiscal Year Buttons ─── */
 .fy-btn {
@@ -385,6 +388,7 @@ body { background:var(--bg); font-family:'Segoe UI','Noto Sans Thai',sans-serif;
           <div class="chart-title">
             <span class="section-tag sub">T1-5a</span><i class="bi bi-prescription2 me-1" style="color:#3b82f6;"></i>Prescription Errors — Top Subtypes
             <span class="chart-badge" id="b5aPres">0</span>
+            <div class="ms-wrap" style="margin-left:auto;"><button class="ms-btn ms-btn-sm" id="c5aPres-btn" type="button">Subtype ▾</button><div class="ms-dropdown ms-dd-right" id="c5aPres-drop"></div></div>
           </div>
           <canvas id="c5aPres" style="max-height:300px;"></canvas>
         </div>
@@ -394,6 +398,7 @@ body { background:var(--bg); font-family:'Segoe UI','Noto Sans Thai',sans-serif;
           <div class="chart-title">
             <span class="section-tag sub">T1-5b</span><i class="bi bi-box-seam me-1" style="color:#8b5cf6;"></i>Pre-Dispensing Errors — Top Subtypes
             <span class="chart-badge" id="b5bPreD">0</span>
+            <div class="ms-wrap" style="margin-left:auto;"><button class="ms-btn ms-btn-sm" id="c5bPreD-btn" type="button">Subtype ▾</button><div class="ms-dropdown ms-dd-right" id="c5bPreD-drop"></div></div>
           </div>
           <canvas id="c5bPreD" style="max-height:300px;"></canvas>
         </div>
@@ -403,6 +408,7 @@ body { background:var(--bg); font-family:'Segoe UI','Noto Sans Thai',sans-serif;
           <div class="chart-title">
             <span class="section-tag sub">T1-5c</span><i class="bi bi-capsule me-1" style="color:#10b981;"></i>Dispensing Errors — Top Subtypes
             <span class="chart-badge" id="b5cDisp">0</span>
+            <div class="ms-wrap" style="margin-left:auto;"><button class="ms-btn ms-btn-sm" id="c5cDisp-btn" type="button">Subtype ▾</button><div class="ms-dropdown ms-dd-right" id="c5cDisp-drop"></div></div>
           </div>
           <canvas id="c5cDisp" style="max-height:300px;"></canvas>
         </div>
@@ -412,6 +418,7 @@ body { background:var(--bg); font-family:'Segoe UI','Noto Sans Thai',sans-serif;
           <div class="chart-title">
             <span class="section-tag sub">T1-5d</span><i class="bi bi-syringe me-1" style="color:#f97316;"></i>Administration Errors — Top Subtypes
             <span class="chart-badge" id="b5dAdm">0</span>
+            <div class="ms-wrap" style="margin-left:auto;"><button class="ms-btn ms-btn-sm" id="c5dAdm-btn" type="button">Subtype ▾</button><div class="ms-dropdown ms-dd-right" id="c5dAdm-drop"></div></div>
           </div>
           <canvas id="c5dAdm" style="max-height:300px;"></canvas>
         </div>
@@ -766,6 +773,7 @@ function initAll() {
     });
   });
 
+  populateT15Drops();
   renderTab1();
 }
 
@@ -897,12 +905,34 @@ function updateWardCharts() {
   });
 }
 
+function populateT15Drops() {
+  TYPE_CHARTS.forEach(cfg => {
+    const dropId = cfg.sub + '-drop';
+    const btnId  = cfg.sub + '-btn';
+    const subtypes = [...new Set(
+      allData.filter(r => clean(r.type) === cfg.type)
+             .map(r => clean(r.subtype)).filter(Boolean)
+    )].sort();
+    fillMultiDrop(dropId, subtypes);
+    bindMultiDrop(btnId, dropId, updateSubtypeCharts, 'Subtype');
+  });
+}
+
 function mkHBarChart(typeName, canvasId, badgeId, color, groupKey, n) {
   const rows = tab1Data.filter(r=>clean(r.type)===typeName);
   document.getElementById(badgeId).textContent = fmt(rows.length);
 
-  const map   = countBy(rows, groupKey);
-  const pairs = topN(map, n);
+  const map = countBy(rows, groupKey);
+
+  const dropEl = document.getElementById(canvasId + '-drop');
+  const selected = dropEl ? getMultiVals(canvasId + '-drop') : [];
+
+  let pairs;
+  if (selected.length) {
+    pairs = selected.map(s => [s, map[s] || 0]).sort((a,b) => b[1]-a[1]);
+  } else {
+    pairs = topN(map, n);
+  }
 
   destroyChart(canvasId);
   if (!pairs.length) return;
@@ -990,7 +1020,7 @@ function initTab2() {
       document.getElementById(id).addEventListener('change', () => { t2Page=1; renderTab2(); }));
 
     ['f2Unit','f2Ward','f2Sev','f2Type','f2Sub'].forEach(id =>
-      bindMultiDrop(id + '-btn', id + '-drop'));
+      bindMultiDrop(id + '-btn', id + '-drop', () => { t2Page = 1; renderTab2(); }, 'ทั้งหมด'));
 
     document.addEventListener('click', () => {
       document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
@@ -1035,10 +1065,10 @@ function getMultiVals(dropId) {
   return [...document.querySelectorAll('#' + dropId + ' input:checked')].map(c => c.value);
 }
 
-function updateMsBtn(btnId, dropId) {
+function updateMsBtn(btnId, dropId, defaultLabel = 'ทั้งหมด') {
   const vals = getMultiVals(dropId);
   const btn = document.getElementById(btnId);
-  if (vals.length === 0) btn.textContent = 'ทั้งหมด ▾';
+  if (vals.length === 0) btn.textContent = defaultLabel + ' ▾';
   else if (vals.length === 1) btn.textContent = vals[0] + ' ▾';
   else btn.textContent = vals.length + ' รายการ ▾';
 }
@@ -1048,7 +1078,7 @@ function resetMultiDrop(dropId, btnId) {
   document.getElementById(btnId).textContent = 'ทั้งหมด ▾';
 }
 
-function bindMultiDrop(btnId, dropId) {
+function bindMultiDrop(btnId, dropId, onChangeFn, defaultLabel = 'ทั้งหมด') {
   const btn = document.getElementById(btnId);
   const drop = document.getElementById(dropId);
   btn.addEventListener('click', e => {
@@ -1057,8 +1087,8 @@ function bindMultiDrop(btnId, dropId) {
     drop.classList.toggle('open');
   });
   drop.addEventListener('change', () => {
-    updateMsBtn(btnId, dropId);
-    t2Page = 1; renderTab2();
+    updateMsBtn(btnId, dropId, defaultLabel);
+    if (onChangeFn) onChangeFn();
   });
 }
 
